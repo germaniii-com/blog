@@ -1,0 +1,52 @@
+name: Docker Build & Push - blog.germaniii.com
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        run: |
+          docker buildx create --name custom-builder --driver docker-container --use
+          docker buildx inspect --bootstrap
+
+      - name: Log in to Registry
+        if: github.event_name != 'pull_request'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and Push
+        run: |
+          IMAGE="ghcr.io/germaniii/blog.germaniii.com"
+
+          TAGS="-t $IMAGE:${GITHUB_SHA::7} -t $IMAGE:latest"
+
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            TAGS="$TAGS -t $IMAGE:${GITHUB_REF#refs/tags/v}"
+          fi
+
+          PUSH_FLAG=""
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            PUSH_FLAG="--push"
+          fi
+
+          docker buildx build \
+            $TAGS \
+            -f Dockerfile.prod \
+            $PUSH_FLAG \
+            --cache-from=type=registry,ref=$IMAGE:cache \
+            --cache-to=type=registry,ref=$IMAGE:cache,mode=max \
+            .

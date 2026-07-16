@@ -43,7 +43,7 @@ jobs:
       - name: Build and Push
         run: |
           REPO_OWNER="${{ github.repository_owner }}"
-          IMAGE="ghcr.io/${REPO_OWNER}/blog.germaniii.com"
+          IMAGE="ghcr.io/${{ github.repository }}"
           IMAGE="${IMAGE,,}"
 
           TAGS="-t $IMAGE:${GITHUB_SHA::7} -t $IMAGE:latest"
